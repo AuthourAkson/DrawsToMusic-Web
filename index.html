@@ -34,6 +34,7 @@
   <label class="chk"><input id="clickChk" type="checkbox"><span>节拍器</span></label>
   <label class="chk"><input id="gridChk" type="checkbox" checked><span>网格 (G)</span></label>
   <label class="chk"><input id="rowChk" type="checkbox" checked><span>音名</span></label>
+  <label class="field"><span>橡皮</span><input id="eraseR" type="range" min="8" max="70" value="22" step="1"><b id="eraseRV">22</b></label>
   <i class="sep"></i>
   <label class="field"><span>音阶</span><select id="scaleSel"></select></label>
   <label class="field"><span>主音</span><select id="keySel"></select></label>
@@ -56,7 +57,7 @@
 </div>
 
 <main id="stage">
-  <div id="paper"><canvas id="cv"></canvas></div>
+  <div id="paper"><canvas id="cv"></canvas><div id="ring"></div></div>
 </main>
 
 <footer id="foot">

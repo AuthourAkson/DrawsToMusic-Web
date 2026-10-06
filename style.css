@@ -77,6 +77,17 @@ body{
   overflow:hidden;touch-action:none;position:relative;
 }
 #cv{display:block;cursor:crosshair;touch-action:none}
+
+/* 橡皮光圈：跟着指针走，显示真实擦除范围 */
+#ring{
+  position:absolute;left:0;top:0;width:44px;height:44px;display:none;
+  transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
+  border:2px solid rgba(216,90,48,.85);
+  background:rgba(216,90,48,.13);
+  box-shadow:0 0 0 1px rgba(255,255,255,.7) inset;
+  z-index:5;
+}
+#ring.on{display:block}
 body.erasing #cv{cursor:cell}
 
 #foot{flex:0 0 auto;padding:7px 14px;color:var(--muted);text-align:center;font-size:12px;border-top:1px solid var(--hair)}

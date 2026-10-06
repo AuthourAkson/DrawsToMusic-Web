@@ -205,7 +205,12 @@ function redo() {
 }
 
 /* ------------------------------------------------------------------ 绘制 */
-const MINDIST_PX = 7, ERASE_PX = 20;
+const MINDIST_PX = 7;
+/* 橡皮半径，单位是【屏幕像素】。
+   注意：判定必须在像素空间做 —— 之前拿归一化坐标直接算距离，
+   而 x 除以 W、y 除以 H 之后两个方向的尺度不一样，
+   画布不是正方形时擦除范围会变成椭圆，和光圈对不上。 */
+let eraseR = 22;
 function evPt(e) {
   const r = cv.getBoundingClientRect();
   return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height];
@@ -229,7 +234,7 @@ function pointerMove(x, y) {
   if (tool === 'erase') {
     const l = lastErase || [x, y];
     const dx = (x - l[0]) * W, dy = (y - l[1]) * H;
-    const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (ERASE_PX * 0.5)));
+    const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (eraseR * 0.5)));
     for (let i = 1; i <= n; i++) eraseAt(l[0] + (x - l[0]) * i / n, l[1] + (y - l[1]) * i / n);
     lastErase = [x, y];
     return;
@@ -248,13 +253,17 @@ function pointerUp() {
   needsDraw = true; notesDirty = true; updateStats(true); autoSave();
 }
 function eraseAt(x, y) {
-  const rpx = ERASE_PX / Math.min(W, H);
   const out = [];
   let changed = false;
-  for (const s of strokes()) {
+  const r2 = eraseR * eraseR;                 // 像素空间比较，用平方省掉开方
+  const list = strokes();
+  for (let si = 0; si < list.length; si++) {
+    const s = list[si];
     let seg = [];
-    for (const p of s.pts) {
-      if (Math.hypot(p[0] - x, p[1] - y) < rpx) { changed = true; if (seg.length) out.push({ color: s.color, pts: seg }); seg = []; }
+    for (let i = 0; i < s.pts.length; i++) {
+      const p = s.pts[i];
+      const dx = (p[0] - x) * W, dy = (p[1] - y) * H;
+      if (dx * dx + dy * dy < r2) { changed = true; if (seg.length) out.push({ color: s.color, pts: seg }); seg = []; }
       else seg.push(p);
     }
     if (seg.length) out.push({ color: s.color, pts: seg });
@@ -262,8 +271,34 @@ function eraseAt(x, y) {
   if (changed) { piece.pages[pageIndex] = out; invalidate(); updateStats(); }
 }
 
+/* ---------------------------------------------------------------- 橡皮光圈 */
+const ringEl = document.getElementById('ring');
+function sizeRing() { if (ringEl) { ringEl.style.width = ringEl.style.height = (eraseR * 2) + 'px'; } }
+function placeRing(clientX, clientY) {
+  if (!ringEl || tool !== 'erase') return;
+  const r = cv.getBoundingClientRect();
+  ringEl.style.left = (clientX - r.left) + 'px';
+  ringEl.style.top = (clientY - r.top) + 'px';
+  ringEl.classList.add('on');
+}
+function hideRing() { if (ringEl) ringEl.classList.remove('on'); }
+function setTool(t) {
+  tool = t;
+  if (t !== 'erase') hideRing();
+  document.body.classList.toggle('erasing', t === 'erase');
+  syncUI();
+}
+
 cv.addEventListener('pointerdown', (e) => { e.preventDefault(); cv.setPointerCapture(e.pointerId); drawing = true; const p = evPt(e); pointerDown(p[0], p[1]); SilentTrack.arm(); AudioEngine.ensure(); });
-cv.addEventListener('pointermove', (e) => { if (!drawing) return; const p = evPt(e); pointerMove(p[0], p[1]); });
+cv.addEventListener('pointermove', (e) => {
+  if (tool === 'erase') placeRing(e.clientX, e.clientY);
+  if (!drawing) return;
+  const p = evPt(e);
+  pointerMove(p[0], p[1]);
+});
+cv.addEventListener('pointerenter', (e) => { if (tool === 'erase') placeRing(e.clientX, e.clientY); });
+cv.addEventListener('pointerleave', () => { if (!drawing) hideRing(); });
+cv.addEventListener('pointerdown', (e) => { if (tool === 'erase') placeRing(e.clientX, e.clientY); }, true);
 const up = () => { drawing = false; pointerUp(); };
 cv.addEventListener('pointerup', up);
 cv.addEventListener('pointercancel', up);
@@ -425,6 +460,7 @@ function resize() {
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  sizeRing();
   draw();
 }
 
@@ -659,7 +695,7 @@ function wire() {
   $('restart').onclick = restart;
   $('undo').onclick = undo;
   $('redo').onclick = redo;
-  $('erase').onclick = () => { tool = tool === 'erase' ? 'draw' : 'erase'; syncUI(); };
+  $('erase').onclick = () => setTool(tool === 'erase' ? 'draw' : 'erase');
   $('clear').onclick = () => { if (!strokes().length) return; snapshot(); piece.pages[pageIndex] = []; syncAll(); };
 
   let bpmTimer = 0;
@@ -673,6 +709,13 @@ function wire() {
     bpmTimer = setTimeout(() => { cfgKey = ''; syncAll(); }, 130);
   };
   $('vol').oninput = (e) => AudioEngine.setVolume(e.target.value / 100);
+  $('eraseR').oninput = (e) => {
+    eraseR = +e.target.value;
+    $('eraseRV').textContent = e.target.value;
+    sizeRing();
+    if (ringEl && ringEl.classList.contains('on')) { /* 位置不变，尺寸已更新 */ }
+  };
+  sizeRing();
   $('gridChk').onchange = (e) => { showGrid = e.target.checked; markInk(); draw(); };
   $('rowChk').onchange = (e) => { showRows = e.target.checked; markInk(); draw(); };
   $('drumsChk').onchange = (e) => AudioEngine.setDrums(e.target.checked);
@@ -720,8 +763,8 @@ function wire() {
     if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if (e.ctrlKey || e.metaKey) return;
-    if (e.key === 'e') { tool = tool === 'erase' ? 'draw' : 'erase'; syncUI(); }
-    else if (e.key === 'd') { tool = 'draw'; syncUI(); }
+    if (e.key === 'e') { setTool(tool === 'erase' ? 'draw' : 'erase'); }
+    else if (e.key === 'd') { setTool('draw'); }
     else if (e.key === 'g') { $('gridChk').checked = !showGrid; showGrid = $('gridChk').checked; draw(); }
     else if (e.key >= '1' && e.key <= '9') { colorIdx = +e.key - 1; syncUI(); }
   });
