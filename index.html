@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#faf9f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="画出声音 —— 横轴是时间，纵轴是音高。拖动鼠标或手指画线，线条就会变成音乐。">
+<title>DrawMusic —— 画出声音</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="bar">
+  <div class="group">
+    <button id="play" class="btn primary">▶ 播放</button>
+    <button id="restart" class="btn icon" title="回到循环开头">⏮</button>
+    <button id="undo" class="btn icon" title="撤销 (Ctrl+Z)">↶</button>
+    <button id="redo" class="btn icon" title="重做 (Ctrl+Shift+Z)">↷</button>
+    <button id="erase" class="btn icon" title="橡皮 (E)">◻</button>
+    <button id="clear" class="btn icon danger" title="清空这一页">✕</button>
+  </div>
+  <div class="group right">
+    <button id="gear" class="btn icon" title="设置">⚙</button>
+    <button id="openImport" class="btn accent">⬇ 导入</button>
+  </div>
+</header>
+
+<div id="drawer">
+  <label class="field"><span>速度</span><input id="bpmR" type="range" min="40" max="220" value="120" step="1"><b id="bpmV">120</b></label>
+  <label class="field"><span>音量</span><input id="vol" type="range" min="0" max="100" value="70"></label>
+  <label class="chk"><input id="drumsChk" type="checkbox"><span>鼓</span></label>
+  <label class="chk"><input id="clickChk" type="checkbox"><span>节拍器</span></label>
+  <label class="chk"><input id="gridChk" type="checkbox" checked><span>网格 (G)</span></label>
+  <label class="chk"><input id="rowChk" type="checkbox" checked><span>音名</span></label>
+  <i class="sep"></i>
+  <label class="field"><span>音阶</span><select id="scaleSel"></select></label>
+  <label class="field"><span>主音</span><select id="keySel"></select></label>
+  <label class="field"><span>细分</span><select id="spbSel"></select></label>
+  <label class="field"><span>长度</span><select id="beatsSel"></select><b id="loopLen" class="len">—</b></label>
+  <i class="sep"></i>
+  <label class="field"><span>画布</span><select id="arSel"></select></label>
+  <label class="field"><span>高/宽</span><input id="arNum" type="number" step="0.01" min="0.22" max="2.6" value="0.62"></label>
+  <i class="sep"></i>
+  <button id="savePng" class="btn">PNG</button>
+  <button id="saveJson" class="btn">JSON</button>
+  <button id="saveWav" class="btn">WAV</button>
+  <button id="savePmt" class="btn" title="导出成 play_music_theory 的格式">PMT 备份</button>
+</div>
+
+<div id="subbar">
+  <div id="palette" class="palette"></div>
+  <div id="pages" class="pages"></div>
+  <div id="stats" class="stats">—</div>
+</div>
+
+<main id="stage">
+  <div id="paper"><canvas id="cv"></canvas></div>
+</main>
+
+<footer id="foot">
+  横轴是时间，纵轴是音高 · <b>空格</b>播放 · <b>1-9</b> 换音色 · <b>E</b> 橡皮
+</footer>
+
+<div id="modal" hidden>
+  <div class="card">
+    <h2>导入作品</h2>
+    <p class="hint">粘贴 <b>play_music_theory</b> 的分享链接 / <code>j…</code> <code>d…</code> 串 / 草稿内容，或本程序导出的 <code>.json</code>。
+      <br><b>本程序不做任何条数截断</b> —— 你画多少条，就导入多少条。</p>
+    <textarea id="impText" spellcheck="false" autocapitalize="off" placeholder="把链接或那一长串粘在这里…"></textarea>
+    <div class="row">
+      <button id="impOk" class="btn primary">解析</button>
+      <label class="btn filebtn">选择文件<input id="impFile" type="file" accept=".json,.txt,text/plain,application/json"></label>
+      <span id="impMsg"></span>
+    </div>
+    <div class="preview-wrap">
+      <div class="aspects">
+        <div class="alabel">画布比例（原数据里的 a 值可能是错的，这里可以改）</div>
+        <div id="aspectList" class="aspectlist"></div>
+      </div>
+      <div class="prevbox"><canvas id="impPreview"></canvas></div>
+    </div>
+    <div class="row end">
+      <button id="impCancel" class="btn">取消</button>
+      <button id="impConfirm" class="btn primary" disabled>导入并替换当前画布</button>
+    </div>
+  </div>
+</div>
+
+<script src="default-piece.js"></script>
+<script src="piece.js"></script>
+<script src="audio.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

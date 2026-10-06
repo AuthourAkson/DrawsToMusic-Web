@@ -1,0 +1,16 @@
+# 依赖与构建产物（本项目其实零依赖，留着以防万一）
+node_modules/
+package-lock.json
+
+# 临时/调试文件
+_*.png
+_*.json
+_*.js
+!build-default.js
+.tmp/
+*.log
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini
