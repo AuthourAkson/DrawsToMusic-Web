@@ -2,7 +2,24 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta id="vp" name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<script>
+/* 显示模式：默认「手机」= 自适应布局；「桌面」= 把布局视口固定成 1280px，
+   浏览器会像"请求桌面版"一样整体缩放，并允许双指放大细看。
+   优先级：URL 参数 > 上次选择。必须在这里同步执行，晚于首屏布局就来不及了。 */
+(function () {
+  var pref = null;
+  try { pref = localStorage.getItem('dtm.view'); } catch (e) {}
+  var sp = new URLSearchParams(location.search);
+  if (sp.has('desktop') || sp.has('pc')) pref = 'desktop';
+  else if (sp.has('mobile')) pref = 'mobile';
+  if (pref === 'desktop') {
+    document.getElementById('vp').setAttribute('content',
+      'width=1280,user-scalable=yes,viewport-fit=cover');
+    document.documentElement.className = 'desktop-mode';
+  }
+})();
+</script>
 <meta name="theme-color" content="#faf9f7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -48,6 +65,7 @@
   <button id="saveJson" class="btn">JSON</button>
   <button id="saveWav" class="btn">WAV</button>
   <button id="savePmt" class="btn" title="导出成 play_music_theory 的格式">PMT 备份</button>
+  <button id="viewMode" class="btn" title="手机上：切换自适应 / 桌面比例显示">显示模式</button>
 </div>
 
 <div id="subbar">

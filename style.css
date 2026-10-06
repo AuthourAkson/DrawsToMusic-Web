@@ -177,3 +177,9 @@ body.erasing #cv{cursor:cell}
   transition:opacity .25s,transform .25s;
 }
 #toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---------------------------------------------------------------- 桌面模式
+   布局视口被固定成 1280px，所以上面所有 max-width 的媒体查询天然不生效，
+   页面就是电脑版的排版。这里只需要放开双指缩放。 */
+html.desktop-mode #cv, html.desktop-mode #paper{touch-action:pinch-zoom}
+html.desktop-mode #bar, html.desktop-mode #drawer, html.desktop-mode #subbar{touch-action:pan-x pan-y pinch-zoom}

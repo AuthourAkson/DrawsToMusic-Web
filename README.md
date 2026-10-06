@@ -416,3 +416,60 @@ Pages 会自动重新构建，一般 30 秒 ~ 1 分钟生效。
 D 混合利底亚的第 3 级会写成 `F#` 而不是 `Gb`，Eb 自然小调的 6 级会写成 `Cb`。
 
 五声/布鲁斯这类不齐七声的音阶退回按调性偏好选升号或降号。
+
+---
+
+## 两种显示模式
+
+手机上默认是**自适应布局**（设置收进抽屉、按钮图标化）。但如果你更想按电脑的比例看整页，
+可以切到**桌面模式**：把布局视口固定成 1280px，浏览器就会像"请求桌面版"那样整体缩放，
+再用双指放大细看。
+
+| 进入方式 | 效果 |
+|---|---|
+| 点设置抽屉里的 **「显示模式」** 按钮 | 切换并记住 |
+| URL 加 `?desktop`（或 `?pc`） | 桌面模式（一次性，会覆盖记忆） |
+| URL 加 `?mobile` | 强制回到自适应 |
+
+```html
+<!-- 源码就是这样切的（必须同步执行，晚于首屏布局就来不及了） -->
+<meta id="vp" name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<script>
+if (sp.has('desktop') || sp.has('pc')) {
+  document.getElementById('vp').setAttribute('content', 'width=1280,user-scalable=yes,viewport-fit=cover');
+  document.documentElement.className = 'desktop-mode';
+}
+</script>
+```
+
+### 三个必须一起处理的坑
+
+**① `user-scalable=no` 会禁掉双指缩放** —— 桌面模式下换成 `user-scalable=yes`。
+
+**② 画布上的 `touch-action:none` 会吃掉双指手势** —— 桌面模式下放宽成 `pinch-zoom`，
+单指照样画，双指交给浏览器缩放。
+
+**③ 布局视口变 1280 后 dpr 还是 3，位图会炸**：
+
+```
+1219 × 3 = 3657px 宽的位图 × 2270px × 4 字节 ≈ 32 MB   ← 手机上必卡
+```
+
+修法是按「物理像素 / CSS 像素」的真实比例算 dpr：
+
+```js
+const vs = (window.visualViewport && window.visualViewport.scale) || 1;
+dpr = Math.max(1, Math.min((window.devicePixelRatio || 1) * Math.min(vs, 1), 2));
+```
+
+- 普通手机：`vs=1`，`dpr=3` → 仍压到 **2**（行为不变）
+- 桌面模式：`vs≈0.305`，`3 × 0.305 ≈ 0.9` → **1**，位图降到 **3.5 MB**
+- 放大细看时 `vs > 1`，`Math.min(vs,1)` 让它**不要跟着涨**，
+  否则每捏一次就重建一块大位图
+
+### 双指缩放不该画出线
+
+`touch-action:pinch-zoom` 允许双指手势后，第二根手指也会触发 pointerdown。
+现在的处理是：**只有 `isPrimary` 的第一根手指才起笔**，
+一旦出现第二根就判定为「在缩放」，把刚起的那一笔撤掉（连带撤销栈里的记录一起回滚），
+并把指针交还给浏览器。

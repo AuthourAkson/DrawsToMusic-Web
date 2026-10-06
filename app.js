@@ -289,17 +289,42 @@ function setTool(t) {
   syncUI();
 }
 
-cv.addEventListener('pointerdown', (e) => { e.preventDefault(); cv.setPointerCapture(e.pointerId); drawing = true; const p = evPt(e); pointerDown(p[0], p[1]); SilentTrack.arm(); AudioEngine.ensure(); });
+/* 桌面模式允许双指缩放，所以要能分清「画画」和「缩放」：
+   第一根手指才是画，出现第二根就判定为缩放，把刚起的那一笔撤掉并交还给浏览器。 */
+let ptrCount = 0;
+function cancelStroke() {
+  if (cur) {
+    const list = strokes();
+    const i = list.indexOf(cur);
+    if (i >= 0) list.splice(i, 1);
+    cur = null;
+    if (undoStack.length && undoStack[undoStack.length - 1].t === 'add') undoStack.pop();
+    inkDirty = true; needsDraw = true; notesDirty = true; updateStats(true);
+  }
+  drawing = false; hideRing();
+}
+cv.addEventListener('pointerdown', (e) => {
+  ptrCount++;
+  if (ptrCount > 1 || !e.isPrimary) {
+    cancelStroke();
+    try { cv.releasePointerCapture(e.pointerId); } catch (err) {}
+    return;
+  }
+  e.preventDefault(); cv.setPointerCapture(e.pointerId);
+  drawing = true;
+  const p = evPt(e); pointerDown(p[0], p[1]);
+  SilentTrack.arm(); AudioEngine.ensure();
+});
 cv.addEventListener('pointermove', (e) => {
   if (tool === 'erase') placeRing(e.clientX, e.clientY);
-  if (!drawing) return;
+  if (!drawing || !e.isPrimary) return;
   const p = evPt(e);
   pointerMove(p[0], p[1]);
 });
 cv.addEventListener('pointerenter', (e) => { if (tool === 'erase') placeRing(e.clientX, e.clientY); });
 cv.addEventListener('pointerleave', () => { if (!drawing) hideRing(); });
 cv.addEventListener('pointerdown', (e) => { if (tool === 'erase') placeRing(e.clientX, e.clientY); }, true);
-const up = () => { drawing = false; pointerUp(); };
+const up = () => { drawing = false; ptrCount = 0; pointerUp(); };
 cv.addEventListener('pointerup', up);
 cv.addEventListener('pointercancel', up);
 cv.addEventListener('pointerleave', up);
@@ -454,7 +479,12 @@ function resize() {
   const PAD = 24;                       // 给纸留一点边距
   const availW = st.width - PAD, availH = st.height - PAD;
   if (availW < 40 || availH < 40) return;
-  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  /* 物理像素 / CSS 像素 = devicePixelRatio × 视觉缩放。
+     桌面模式把布局视口固定成 1280，手机上 visualViewport.scale 约 0.3，
+     若还按 devicePixelRatio(3) 建画布，位图会有 3600px 宽（≈32MB），必卡。
+     scale > 1（放大细看）时不跟着涨，否则每捏一次就换一次大位图。 */
+  const vs = (window.visualViewport && window.visualViewport.scale) || 1;
+  dpr = Math.max(1, Math.min((window.devicePixelRatio || 1) * Math.min(vs, 1), 2));
   const ar = Math.max(0.22, Math.min(2.6, piece.ar));
   let w = availW, h = availW * ar;
   if (h > availH) { h = availH; w = availH / ar; }
@@ -745,6 +775,11 @@ function wire() {
   $('savePng').onclick = () => exportPNG(2400);
   $('saveWav').onclick = () => exportWAV();
   $('savePmt').onclick = () => { navigator.clipboard.writeText(pieceToPMT(piece, piece.ar)).then(() => alert('已复制一份 play_music_theory 格式的备份到剪贴板。\n（注意：在那边打开仍然只会显示前 64 条，那是它的 bug。）'), () => alert('复制失败，请改用「存 JSON」。')); };
+  $('viewMode').onclick = () => {
+    const on = document.documentElement.classList.contains('desktop-mode');
+    try { localStorage.setItem('dtm.view', on ? 'mobile' : 'desktop'); } catch (e) {}
+    location.href = location.pathname;      // 丢掉 ?desktop / ?mobile，改用持久化设置
+  };
   $('gear').onclick = () => {
     const open = document.body.classList.toggle('drawer-open');
     $('gear').classList.toggle('on', open);
@@ -864,7 +899,7 @@ async function loadDefaultPiece() {
 
 function init() {
   // ?reset —— 清掉本地草稿，重新展示默认作品（改完默认值后自己看效果用）
-  if (/[?&]reset/.test(location.search)) {
+  if (new URLSearchParams(location.search).has('reset')) {
     try { localStorage.removeItem('drawmusic.piece'); } catch (e) {}
   }
   const hadDraft = loadAutoSave();
