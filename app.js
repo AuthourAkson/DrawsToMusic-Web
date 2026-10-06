@@ -321,7 +321,13 @@ const inkCtx = inkCv.getContext('2d');
 let inkDirty = true, needsDraw = true, notesDirty = true;
 let inkBW = -1, inkBH = -1;
 
-function inkScale() { return Math.min(1.35, Math.max(0.85, W / 460)); }
+/* 线宽必须与画布宽度成正比 —— 屏幕、导出、预览共用这一个公式。
+   之前是 clamp(W/460, 0.85, 1.35)：上限卡死让桌面的线相对细（0.26% 画布宽），
+   下限卡死让手机的线相对粗（0.49%）—— 同一幅画在手机上就糊成一片。
+   现在改成：上限仍是 1.35（桌面观感完全不变），只在画布比 1090 窄时开始等比缩小，
+   于是手机 0.46、平板 0.92，都比原来细得多；下限 0.46 防止极窄画布细到看不见。 */
+function inkK(w) { return Math.max(0.46, Math.min(1.35, w / 808)); }
+function inkScale() { return inkK(W); }
 
 /* 一条笔迹的三层笔刷：实心芯 + 两层随机虚线（种子由序号决定，所以每帧都一样） */
 function paintOneStroke(g, s, idx, w, h, kk) {
@@ -498,7 +504,7 @@ async function setPlaying(on) {
   playing = on;
   if (on) SilentTrack.arm();
   AudioEngine.play(on);
-  $('play').textContent = on ? '⏸ 暂停' : '▶ 播放';
+  $('play').innerHTML = '<span class="ic">' + (on ? '⏸' : '▶') + '</span><span class="lb">' + (on ? '暂停' : '播放') + '</span>';
   $('play').classList.toggle('on', on);
   if (on) { headFrac = 0; headAt = performance.now(); }
   draw();
@@ -592,7 +598,7 @@ function exportPNG(width) {
   c.width = w; c.height = h;
   const g = c.getContext('2d');
   g.fillStyle = '#fffefb'; g.fillRect(0, 0, w, h);
-  paintInk(g, strokes(), w, h, Math.max(1.0, w / 900));
+  paintInk(g, strokes(), w, h, inkK(w));
   c.toBlob((b) => download(b, 'drawmusic-' + w + 'x' + h + '.png'), 'image/png');
 }
 function exportWAV() {
@@ -621,7 +627,7 @@ function renderImpPreview() {
   c.style.width = w + 'px'; c.style.height = h + 'px';
   const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0);
   g.fillStyle = '#fffefb'; g.fillRect(0, 0, w, h);
-  if (impPiece) paintInk(g, impPiece.pages[0], w, h, Math.max(0.55, w / 520));
+  if (impPiece) paintInk(g, impPiece.pages[0], w, h, inkK(w));
 }
 function buildAspectList() {
   const el = $('aspectList'); el.innerHTML = '';

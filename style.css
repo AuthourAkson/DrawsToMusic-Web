@@ -16,8 +16,14 @@ body{
 #bar{
   display:flex;gap:8px;align-items:center;flex:0 0 auto;
   padding:8px 10px;background:var(--raised);border-bottom:1px solid var(--hair);
+  overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
 }
-#bar .group{display:flex;gap:6px;align-items:center}
+#bar::-webkit-scrollbar,#subbar::-webkit-scrollbar{display:none}
+#bar .group{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+#bar .btn{flex:0 0 auto}
+/* 按钮里的图标和文字分开，手机上只留图标 */
+.btn .ic{display:inline-block;min-width:1em;text-align:center}
+.btn .lb{margin-left:5px}
 #bar .group.right{margin-left:auto}
 #gear{display:none}
 
@@ -96,14 +102,28 @@ body.erasing #cv{cursor:cell}
 /* ---------------------------------------------------------------- 手机 */
 @media (max-width:860px){
   #drawer{display:none}
-  body.drawer-open #drawer{display:flex;max-height:52dvh}
+  body.drawer-open #drawer{display:flex;max-height:46dvh}
   #gear{display:inline-flex}
   #foot{display:none}
   .stats{display:none}
-  .btn{padding:8px 10px;min-height:40px}
-  #bar{padding:6px 8px;gap:6px}
-  #subbar{padding:6px 8px}
-  .sw{width:30px;height:30px}
+
+  /* 顶栏：按钮图标化 + 收紧，390px 宽也放得下 8 个按钮 */
+  #bar{padding:6px 8px;gap:5px}
+  #bar .group{gap:5px}
+  .btn{padding:7px 9px;min-height:38px;font-size:15px;line-height:1.1}
+  .btn.icon{padding:7px 9px}
+  .btn .lb{display:none}
+
+  /* 调色板 + 页码：窄屏也尽量不溢出 */
+  #subbar{padding:6px 8px;gap:8px}
+  .sw{width:26px;height:26px}
+  .pg{height:26px;min-width:30px;padding:0 7px;font-size:12px}
+
+  /* 抽屉里的控件占满整行，手指好点 */
+  #drawer{gap:6px 12px;padding:8px}
+  #drawer .field>span{font-size:12px}
+  #drawer select,#drawer input[type=number]{max-width:132px;min-height:32px}
+  #drawer input[type=range]{width:92px}
 }
 /* 触屏但不能靠宽度判断的设备（比如横屏平板） */
 @media (pointer:coarse){
