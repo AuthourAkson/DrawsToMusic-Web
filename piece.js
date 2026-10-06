@@ -105,8 +105,8 @@ function normalizePiece(p) {
     p = pmtToPiece(p, { name: p.name || '' });
   }
   const q = Object.assign({
-    v: 1, name: '', bpm: 120, scale: 'pentatonic', key: 0,
-    stepsPerBeat: 4, beats: 16, rows: 32, ar: 0.62, pages: []
+    v: 1, name: '', bpm: 60, scale: 'mixolydian', key: 3,
+    stepsPerBeat: 4, beats: 8, rows: 32, ar: 0.62, pages: []
   }, p || {});
   q.ar = Math.max(0.22, Math.min(2.6, Number(q.ar) || 0.62));
   if (!Array.isArray(q.pages)) {

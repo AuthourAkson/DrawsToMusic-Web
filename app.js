@@ -18,6 +18,39 @@ const SCALES = {
   chromatic:  { name: '半音阶',   iv: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] }
 };
 const NOTE_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+/* 画布左侧的音名要按调来拼，不能一张表走天下：
+     Eb 混合利底亚第 7 级是 Db 不是 C#；C 混合利底亚第 7 级是 Bb 不是 A#。
+   做法是七声音阶走「音级 → 字母」的正式拼法（第 i 级固定用主音往上第 i 个字母，
+   再用升降号补足音高），其余音阶退回按调性偏好选升/降号。 */
+const SHARP_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const FLAT_NAMES  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+const FLAT_KEYS = [1, 3, 5, 8, 10];
+const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];
+const ACC = { '-2': 'bb', '-1': 'b', '0': '', '1': '#', '2': '##' };
+let noteTable = SHARP_NAMES;
+function buildNoteTable() {
+  const key = ((piece.key % 12) + 12) % 12;
+  const iv = (SCALES[piece.scale] || SCALES.pentatonic).iv;
+  const tbl = new Array(12).fill(null);
+  if (iv.length === 7) {
+    const tonic = LETTERS.indexOf(NOTE_NAMES[key][0]);
+    for (let i = 0; i < 7; i++) {
+      const pc = (key + iv[i]) % 12;
+      const li = (tonic + i) % 7;
+      let d = (((pc - LETTER_PC[li]) % 12) + 12) % 12;
+      if (d > 6) d -= 12;
+      const acc = ACC[String(d)];
+      if (acc !== undefined && !tbl[pc]) tbl[pc] = LETTERS[li] + acc;
+    }
+  }
+  const flatPref = FLAT_KEYS.indexOf(key) >= 0 ||
+                   iv.some((x) => x === 3 || x === 8 || x === 10);
+  const fallback = flatPref ? FLAT_NAMES : SHARP_NAMES;
+  for (let pc = 0; pc < 12; pc++) if (!tbl[pc]) tbl[pc] = fallback[pc];
+  noteTable = tbl;
+}
+function noteName(midi) { return noteTable[(((midi % 12) + 12) % 12)]; }
 const BASE_MIDI = 48;   // C3
 
 /* --------------------------------------------------------------------- 状态 */
@@ -36,6 +69,7 @@ function steps() { return Math.max(1, Math.min(256, piece.stepsPerBeat * piece.b
 
 /* ---------------------------------------------------------------- 音高映射 */
 function rebuildRows() {
+  buildNoteTable();
   const iv = (SCALES[piece.scale] || SCALES.pentatonic).iv;
   const src = [];
   for (let oct = 0; src.length < piece.rows; oct++)
@@ -312,7 +346,7 @@ function renderInk() {
         if ((r - r0) * rowH >= 9) {
           const midi = rowMidi[r0];
           g.fillStyle = ((midi % 12) + 12) % 12 === kroot ? 'rgba(26,25,22,.55)' : 'rgba(138,135,126,.65)';
-          g.fillText(NOTE_NAMES[((midi % 12) + 12) % 12], 5, H - (r0 + (r - r0) / 2) * rowH);
+          g.fillText(noteName(midi), 5, H - (r0 + (r - r0) / 2) * rowH);
         }
         r0 = r;
       }
@@ -767,13 +801,23 @@ async function loadDefaultPiece() {
   if (!D || !D.packed) return false;
   try {
     const r = await importText(D.packed);
-    if (D.ar) r.piece.ar = D.ar;
-    piece = normalizePiece(r.piece);
+    const p = r.piece;
+    if (D.ar) p.ar = D.ar;
+    // 默认作品的音乐设置（会覆盖数据里自带的 120 BPM / 无音阶）
+    if (D.bpm) p.bpm = D.bpm;
+    if (D.scale) p.scale = D.scale;
+    if (D.key != null) p.key = D.key;
+    if (D.beats) p.beats = D.beats;
+    piece = normalizePiece(p);
     return true;
   } catch (e) { console.warn('默认作品载入失败：', e); return false; }
 }
 
 function init() {
+  // ?reset —— 清掉本地草稿，重新展示默认作品（改完默认值后自己看效果用）
+  if (/[?&]reset/.test(location.search)) {
+    try { localStorage.removeItem('drawmusic.piece'); } catch (e) {}
+  }
   const hadDraft = loadAutoSave();
   rebuildRows();
   wire();
