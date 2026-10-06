@@ -292,3 +292,98 @@ this.anchor = this.t - Math.round(frac * newStepN * d.steps);
 也就是说淡出比正常波形还平滑）。
 
 `node test-audio.js` 现在会检查这几点。
+
+---
+
+## 默认作品
+
+页面打开时会展示 `DefaultDraw.txt` 里那幅画（**360 条笔迹**，戴蓝帽的动漫角色）。
+
+这份数据是从 `DefaultDraw.txt` **编译**成 `default-piece.js` 的：
+
+```bash
+node build-default.js
+```
+
+**为什么不用 `fetch('DefaultDraw.txt')`？**
+因为直接双击 `index.html` 时页面是 `file://` 协议，`fetch` 会被 CORS 拦掉。
+包成 `.js` 用 `<script src>` 加载，`file://` 和 `http(s)://` 都能用。
+
+所以：**改了 `DefaultDraw.txt` 之后要跑一次 `node build-default.js`**，否则页面还是旧的。
+
+画布比例设成了 `ar = 0.62`。原数据里的 `a = 117` 是错的 —— 那是保存时浏览器窗口的比例
+（当时开着 DevTools，窗口被压窄了）。0.62 是我拿牌子上"RHODES"几个字母的**字形纵横比**
+当尺子逐个比例渲染对比出来的。
+
+> 想换成你自己的画：点「⬇ 导入」贴数据 → 挑好比例 → 导入。
+> 想换掉默认作品：把新的数据串存成 `DefaultDraw.txt`（整行一个串），再跑 `node build-default.js`。
+
+---
+
+## 手机
+
+已经专门适配过：
+
+- **设置收进抽屉** —— 顶栏只留播放/撤销/橡皮/清空，点 **⚙** 展开速度、音阶、画布比例等
+- **触屏绘制** —— Pointer Events + `touch-action:none`，画的时候不会触发页面滚动/缩放
+- **高 DPI** —— `devicePixelRatio` 最高按 2 倍渲染，手机上线条不糊
+- **转屏自适应** —— `orientationchange` 后重排（延时 120ms / 400ms 两次，躲开浏览器动画期）
+- **刘海屏安全区** —— `env(safe-area-inset-*)`
+- **iOS 音频解锁** —— iOS 会把 Web Audio 走「铃声」通道，侧边静音开关一拨就彻底没声。
+  程序会在第一次触摸时播一条**循环的静音音轨**，把页面切到「媒体播放」通道
+- **横屏提示** —— 竖屏打开横向的画作时会提示「把手机横过来能画得更大」
+
+> 提示：横向的画作在竖屏手机上只能占满宽度（390 屏 ≈ 366×226）。
+> 转成横屏能拿到大约 2 倍多的绘制面积。
+
+---
+
+## 部署到 GitHub Pages
+
+### 1. 在 GitHub 上新建一个空仓库
+
+不要勾 "Add a README" / ".gitignore" / "license"，保持全空。
+
+### 2. 推上去
+
+```bash
+cd /d D:\DrawMusic
+git remote add origin https://github.com/你的用户名/你的仓库名.git
+git push -u origin main
+```
+
+> 首次推送会要账号密码。**GitHub 从 2021 年起不再接受账户密码**，
+> 需要去 `Settings → Developer settings → Personal access tokens` 建一个 token，
+> 勾上 `repo` 权限，把 token 当密码填。
+
+### 3. 开启 Pages
+
+仓库页面 → **Settings** → 左侧 **Pages**：
+
+- **Source**：`Deploy from a branch`
+- **Branch**：`main` ＋ `/ (root)`
+- 点 **Save**
+
+等 1 分钟左右，访问：
+
+```
+https://你的用户名.github.io/你的仓库名/
+```
+
+### 4. 之后每次更新
+
+```bash
+git add -A
+git commit -m "改了什么"
+git push
+```
+
+Pages 会自动重新构建，一般 30 秒 ~ 1 分钟生效。
+
+### 几个已经处理好的细节
+
+- **全是相对路径** —— 站点会跑在 `用户名.github.io/仓库名/` 这个子路径下，
+  所有 `<script src>` / `<link href>` 都是相对的，不会 404
+- **`.nojekyll`** —— 跳过 GitHub 的 Jekyll 处理，避免文件名被误伤
+- **`.gitattributes`** —— 网页文件统一 LF；`启动.bat` 保持 CRLF（否则 cmd 会出错）
+- **没有构建步骤** —— 推上去的就是能跑的，不需要 Actions

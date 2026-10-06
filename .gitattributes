@@ -1,0 +1,4 @@
+# 网页文件统一用 LF，Windows 批处理必须是 CRLF（否则 cmd 会出错）
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
